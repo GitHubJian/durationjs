@@ -4,7 +4,7 @@ const Ls = {
         name: 'en',
         separator: ' ',
         Y: 'year',
-        M: 'mounth',
+        M: 'month',
         D: 'day',
         H: 'hour',
         m: 'minute',
@@ -57,9 +57,8 @@ const SECOND = 1 * 1000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
-const MOUNTH = 30 * DAY;
+const MONTH = 30 * DAY;
 const YEAR = 365 * DAY;
-const WEEK = 7 * DAY;
 
 function Durationjs(config) {
     this.$i18n = parseLocale(config.locale, null, true);
@@ -74,10 +73,10 @@ Durationjs.prototype.init = function (milliseconds) {
     this.$y = Math.floor(distance / YEAR);
 
     distance = distance - this.$y * YEAR;
-    this.$l = Math.floor(distance / MOUNTH);
-    this.$L = Math.floor(this.$milliseconds / MOUNTH);
+    this.$l = Math.floor(distance / MONTH);
+    this.$L = Math.floor(this.$milliseconds / MONTH);
 
-    distance = distance - this.$l * MOUNTH;
+    distance = distance - this.$l * MONTH;
     this.$d = Math.floor(distance / DAY); // days
     this.$D = Math.floor(this.$milliseconds / DAY); // whole days
 
@@ -283,9 +282,40 @@ Durationjs.prototype.floor = function (name) {
     return this['floor' + fnName]();
 };
 
+// TODO milliseconds is object
+
+function normalize(ms) {
+    return Object.keys(ms)
+        .map(function (key) {
+            switch (key) {
+                case 'years':
+                    return Number(ms.years) * YEAR;
+                case 'months':
+                    return Number(ms.months) * MONTH;
+                case 'days':
+                    return Number(ms.days) * DAY;
+                case 'hours':
+                    return Number(ms.hours) * HOUR;
+                case 'minutes':
+                    return Number(ms.minutes) * MINUTE;
+                case 'seconds':
+                    return Number(ms.seconds) * SECOND;
+            }
+        })
+        .reduce(function (prev, cur) {
+            prev += cur;
+
+            return prev;
+        }, 0);
+}
+
 function durationjs(milliseconds, c) {
     const config = typeof c === 'object' ? c : {};
-    config.milliseconds = milliseconds;
+    if (typeof milliseconds !== 'number') {
+        config.milliseconds = normalize(milliseconds);
+    } else {
+        config.milliseconds = milliseconds;
+    }
     config.args = arguments;
 
     return new Durationjs(config);
@@ -293,33 +323,4 @@ function durationjs(milliseconds, c) {
 
 durationjs.locale = parseLocale;
 
-// test
-const ms =
-    367 * 24 * 60 * 60 * 1000 +
-    10 * 24 * 60 * 60 * 1000 +
-    5 * 60 * 60 * 1000 +
-    4 * 60 * 1000 +
-    5 * 1000 +
-    6;
-
-const d = durationjs(ms);
-
-// 自动去掉 0x 的展示，比如下面就没有月份
-console.log(d.format('D天H时M月S秒Y年m分')); // 12天5时5秒1年4分
-console.log(d.format('H时m分')); // 9053时4分
-console.log(d.locale('zh').format()); // 1年12天5时4分5秒
-console.log(d.locale('zh').format('H时m分')); // 9053时4分
-console.log(d.locale('en').format()); // 1year 12days 5hours 4minutes 5seconds
-console.log(
-    d
-        .locale('my', {
-            name: 'my',
-            H: 'h',
-            m: 'm',
-        })
-        .format()
-); // 9053h4m
-// 支持自定义不想展示的单位，比如不展示年等
-console.log(d.locale('my').format()); // 9053h4m
-// h m 等变量是内置占位符，与上述 my 本地化实现类似
-console.log(`${d.floorHours()}h${d.minutes()}m`); // 9053h4m
+module.exports = durationjs;
